@@ -1,4 +1,4 @@
-# <APP NAME> - hands-only hand-rehab coach for Meta Quest (WebXR)
+# RehabLens - hands-only hand-rehab coach for Meta Quest (WebXR)
 
 ## Inspiration
 Hand-rehab exercises are boring, hard to do correctly alone, and progress is rarely measured. Quest hand tracking already reads 25 joints per hand - enough to coach form, not just count reps.

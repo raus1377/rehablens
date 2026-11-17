@@ -349,7 +349,7 @@ export class CoachSystem extends createSystem({}) {
         c.fillStyle = 'rgba(8,12,24,0.86)';
         c.beginPath(); c.roundRect(0, 0, 1024, 512, 40); c.fill();
         c.fillStyle = '#7dd3fc'; c.font = '600 30px sans-serif';
-        c.fillText('HAND REHAB COACH', 40, 62);
+        c.fillText('REHABLENS', 40, 62);
         c.textAlign = 'right'; c.fillStyle = this.modelState === 'ai' ? '#4ade80' : '#fbbf24'; c.font = '26px sans-serif';
         c.fillText(this.simOn && !this.world.session ? 'DESKTOP DEMO - simulated hand' : this.modelState === 'ai' ? 'AI model active' : this.modelState === 'loading' ? 'loading model...' : 'signal analysis mode', 984, 62);
         c.textAlign = 'left';
