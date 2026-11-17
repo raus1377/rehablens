@@ -1,0 +1,5 @@
+{
+ "alpha": 0.1,
+ "qhat": 4.315910116676655,
+ "note": "interval = score +/- qhat * sigma (split-conformal, subject-wise out-of-fold calibration)"
+}

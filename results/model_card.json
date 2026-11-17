@@ -1,0 +1,12 @@
+{
+ "student.onnx": {
+  "kb": 394,
+  "max_abs_score_diff_vs_pytorch": 1.1920928955078125e-07,
+  "ms_per_inference_cpu": 0.33
+ },
+ "student.int8.onnx": {
+  "kb": 112,
+  "max_abs_score_diff_vs_pytorch": 0.0033042430877685547,
+  "ms_per_inference_cpu": 1.37
+ }
+}

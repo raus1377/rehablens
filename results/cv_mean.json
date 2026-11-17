@@ -1,0 +1,20 @@
+[
+ {
+  "MAE": 9.142581939697266,
+  "RMSE": 10.70135498046875,
+  "pearson": NaN,
+  "spearman": NaN
+ },
+ {
+  "MAE": 8.966707229614258,
+  "RMSE": 10.49063491821289,
+  "pearson": NaN,
+  "spearman": NaN
+ },
+ {
+  "MAE": 9.483720779418945,
+  "RMSE": 10.971230506896973,
+  "pearson": NaN,
+  "spearman": NaN
+ }
+]
