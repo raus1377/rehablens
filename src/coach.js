@@ -69,7 +69,7 @@ export class CoachSystem extends createSystem({}) {
         this.world.createTransformEntity(panel);
         this.ghost = new GhostHand(this.world);
         // Desktop demo: with no WebXR headset available, a simulated hand drives the coach so the link still shows the full experience.
-        this.userHand = new GhostHand(this.world, { pos: [0.55, 1.2, -0.75], color: 0x16a34a, line: 0x15803d, fk: { weak: 3, weakScale: 0.3, tremor: 0, t: 0 } });
+        this.userHand = new GhostHand(this.world, { pos: [0.55, 1.2, -0.75], color: 0x16a34a, line: 0x15803d, fk: { weak: 3, weakScale: 0.1, tremor: 0, t: 0 } });
         const q = new URLSearchParams(location.search).get('demo');
         this.simOn = q === '1';
         this.simIdle = 0;
@@ -137,7 +137,7 @@ export class CoachSystem extends createSystem({}) {
         this.tracked.right = true;
         this.side = 'right';
         const ex = ORDER[Math.min(this.step, ORDER.length - 1)];
-        computeJoints(ex, time * 2 * Math.PI * 0.8 - 0.3, this.pos.right, { weak: ex === 0 ? 3 : -1, weakScale: 0.3, tremor: ex === 2 ? 0.05 : 0, t: time });
+        computeJoints(ex, time * 2 * Math.PI * 0.8 - 0.3, this.pos.right, { weak: ex === 0 ? 3 : -1, weakScale: 0.1, tremor: ex === 2 ? 0.05 : 0, t: time });
     }
 
     pinching() {
@@ -254,7 +254,7 @@ export class CoachSystem extends createSystem({}) {
 
         if (sim) {
             this.userHand.visible = this.state === S.PRACTICE;
-            if (this.state === S.PRACTICE) { this.userHand.opts.t = time; this.userHand.opts.tremor = ORDER[this.step] === 2 ? 0.05 : 0; this.userHand.opts.weak = ORDER[this.step] === 0 ? 3 : -1; this.userHand.update(ORDER[this.step], this.clock * 2 * Math.PI * 0.8 - 0.3); }
+            if (this.state === S.PRACTICE) { this.userHand.opts.t = time; this.userHand.opts.tremor = ORDER[this.step] === 2 ? 0.05 : 0; this.userHand.opts.weak = ORDER[this.step] === 0 ? 3 : -1; this.userHand.setTip(19, ORDER[this.step] === 0 ? 0xef4444 : 0x16a34a); this.userHand.update(ORDER[this.step], this.clock * 2 * Math.PI * 0.8 - 0.3); }
         }
         switch (this.state) {
             case S.IDLE:
@@ -351,7 +351,7 @@ export class CoachSystem extends createSystem({}) {
         } else if (this.state === S.IDLE) {
             c.font = '700 64px sans-serif'; c.fillText(this.simOn && !this.world.session ? 'Desktop demo' : tracked ? 'Pinch and hold to start' : 'Show your hands', 40, 220);
             c.font = '32px sans-serif'; c.fillStyle = '#cbd5e1';
-            c.fillText(this.simOn && !this.world.session ? 'Best on Meta Quest with hand tracking. Starting demo...' : '3 short exercises, scored live by AI. No controllers.', 40, 290);
+            c.fillText(this.simOn && !this.world.session ? 'Best on Meta Quest with hand tracking. Starting demo...' : '3 short exercises, scored live by motion analysis. No controllers.', 40, 290);
             this.bar(c, this.hold / HOLD_S, 360);
         } else if (this.state === S.DEMO) {
             c.font = `600 34px sans-serif`; c.fillStyle = '#94a3b8'; c.fillText(`Exercise ${this.step + 1} of 3`, 40, 130);
@@ -381,11 +381,11 @@ export class CoachSystem extends createSystem({}) {
                 c.fillStyle = s >= 75 ? '#4ade80' : s >= 50 ? '#fbbf24' : '#f87171'; c.fillRect(380, y - 28, 4.2 * s, 34);
                 c.fillStyle = '#fff'; c.fillText(`${Math.round(s)}`, 820, y);
                 c.font = '24px sans-serif'; c.fillStyle = '#94a3b8';
-                c.fillText(`${r.reps} reps · range ${Math.round(r.rom * 100)}% · tremor ${Math.round(r.tremor * 100)}%`, 380, y + 28);
+                c.fillText(r.ex === 1 ? `${r.reps} taps · tremor ${Math.round(r.tremor * 100)}%` : `${r.reps} reps · range ${Math.round(r.rom * 100)}% · tremor ${Math.round(r.tremor * 100)}%`, 380, y + 28);
                 y += 85;
             }
             c.font = '700 40px sans-serif'; c.fillStyle = '#7dd3fc';
-            c.fillText(`Overall ${Math.round(n ? tot / n : 0)} / 100  ·  pinch and hold to go again`, 40, 475);
+            c.fillText(`Overall ${Math.round(n ? tot / n : 0)} / 100` + (this.simOn && !this.world.session ? '  ·  demo restarts soon' : '  ·  pinch and hold to go again'), 40, 475);
         }
         this.tex.needsUpdate = true;
     }

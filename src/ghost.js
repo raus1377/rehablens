@@ -85,6 +85,12 @@ export class GhostHand {
         this.group.visible = false;
     }
     set visible(v) { this.group.visible = v; }
+    /** Recolour one joint (own material so the others keep the shared one). */
+    setTip(i, hex) {
+        const d = this.dots[i];
+        if (!d.userData.own) { d.material = d.material.clone(); d.userData.own = true; }
+        d.material.color.setHex(hex);
+    }
 
     /** exercise 0=fist 1=finger_tap 2=wrist_rot ; phase in radians (2*pi per repetition) */
     update(exercise, phase) {
