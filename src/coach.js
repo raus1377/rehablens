@@ -85,12 +85,15 @@ export class CoachSystem extends createSystem({}) {
             this.world.createTransformEntity(mesh);
             return mesh;
         });
+        // tracked-hand dots (the emulator draws no hands; on a headset they sit on top of the system hand)
+        const lg = new SphereGeometry(0.006, 8, 6), lm = new MeshBasicMaterial({ color: 0x22c55e });
+        this.liveDots = Array.from({ length: 25 }, () => { const m = new Mesh(lg, lm); m.visible = false; this.world.createTransformEntity(m); return m; });
         this.welcome = this.world.getSceneObject?.('welcome-panel');
         this.draw();
 
         // test hook (used by automated checks): feed a [n,75] sequence and read back the score
         window.__rehab = {
-            state: () => ({ state: this.state, step: this.step, model: this.modelState, cur: this.cur, results: this.results }),
+            state: () => ({ tracked: this.tracked[this.side], state: this.state, step: this.step, model: this.modelState, cur: this.cur, results: this.results }),
             feed: (frames, hz) => {
                 this.resetRing();
                 frames.forEach((f, i) => this.pushFrame(i / hz, f));
@@ -241,6 +244,11 @@ export class CoachSystem extends createSystem({}) {
         const pinch = sim ? this.simIdle > (this.state === S.IDLE ? 1.5 : 8) : this.pinching();
         if (sim && (this.state === S.IDLE || this.state === S.SUMMARY)) this.simIdle += delta;
 
+        for (let i = 0; i < 25; i++) {
+            const d = this.liveDots[i];
+            d.visible = inXR && tracked;
+            if (d.visible) { const p = this.pos[this.side]; d.position.set(p[3 * i], p[3 * i + 1], p[3 * i + 2]); }
+        }
         // user's fingertip markers (colour = how well each finger moves)
         for (let i = 0; i < 5; i++) {
             const m = this.tipMeshes[i];
