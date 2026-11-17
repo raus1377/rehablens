@@ -1,33 +1,35 @@
-# Hand Rehab Coach (working title)
-Hands-only WebXR hand-rehab coach with deep-learning form scoring — Meta VR Start Developer Competition 2026.
+# RehabLens
 
-## Run
+**Hands-only hand rehab for Meta Quest, in the browser (WebXR).** No controllers, no install.
+Built for the Meta VR Start Developer Competition 2026 (Productivity).
+
+**Live demo:** https://raus1377.github.io/rehablens/  (on a Quest: open in the Quest Browser and tap Enter VR; on desktop it plays a simulated-hand demo)
+
+## What it does
+Pinch and hold to start. A ghost hand demonstrates each exercise (fist open/close, finger tapping, wrist rotation); you copy it for 12 s while RehabLens scores your form live from the 25 tracked joints per hand (range of motion, 4-12 Hz tremor, rhythm), counts reps, names the finger that under-moves, and shows a 90% confidence interval (about +/-13 points). A summary screen follows.
+
+## Honest status
+- Scoring models were trained and evaluated on **synthetic** kinematic data (subject-wise CV). Not clinically validated.
+- Demo video was recorded in the Meta Quest 3 emulator (IWER); not yet tested on a physical Quest.
+- The deep models did **not** beat hand-crafted features (14-20 vs 3.3 MAE), so the shipped on-device scorer is the calibrated classical one (MAE ~6.4, 90% interval +/-12.8 on held-out synthetic subjects). The full ablation is in `results/`.
+
+## Results (synthetic data, subject-wise CV)
+| Model | MAE (points) |
+|---|---|
+| Mean baseline | 9.20 |
+| Ridge (signal features) | 4.61 |
+| XGBoost (signal features) | 3.26 |
+| Mamba + Transformer, best deep variant | 14.45 - 20.15 |
+
+Split-conformal intervals: 89.7% coverage at a 90% target. Few-shot personalization: 17.7 -> 9.8 MAE with 12 rated windows. Distilled int8 ONNX student: 112 KB, ~1.4 ms. Figures and raw numbers: `results/`.
+
+## Run locally
     npm install
-    npm run dev            # https://localhost:8081  (use the Immersive Web Emulator in Chrome, or open the network URL on a Quest)
-The IWSDK dev tool may try to download its own Chromium; if that fails the server still runs — open the URL in normal Chrome.
+    npm run dev:runtime     # https://localhost:8081 (accept the local certificate; use the Immersive Web Emulator in Chrome, or open the network URL on a Quest)
+URL flags: `?demo=1` force the simulated-hand demo, `?demo=0` disable it, `?mode=record&subject=s01&exercise=finger_tap&form=good` record real hand data.
 
-## Modes
-- **Coach (default):** pinch & hold -> 3 guided exercises (ghost-hand demo + 12 s live scoring each) -> summary. No controllers.
-  Uses `public/models/student.onnx` if present (badge shows "AI model active"), otherwise the calibrated signal-analysis fallback.
-- **Recorder:** `?mode=record&subject=s01&exercise=finger_tap&form=good&dur=10`
-  (exercise: fist | finger_tap | wrist_rot; form: good | limited_rom | tremor | slow | irregular).
-  Pinch & hold -> countdown -> records 10 s of 25-joint hand data -> saved to `./recordings/*.json`.
-
-## ML pipeline (ml/) — run on Colab (GPU), checkpoints to Drive, auto-resume
-    pip install -r ml/requirements.txt
-    python -m rehablens_ml.baselines                                   # CPU: mean / ridge / XGBoost ladder, subject-wise CV
-    python train.py pretrain --ckpt DRIVE --epochs 30                  # masked-joint self-supervised pretraining
-    python train.py finetune --ckpt DRIVE --real ../recordings         # teacher (Transformer + state-space), 5-fold subject-wise
-    python train.py finetune --ckpt DRIVE --real ../recordings --scratch   # ablation: no pretraining
-    python train.py distill  --ckpt DRIVE                              # teacher -> small student CNN
-    python train.py export   --ckpt DRIVE                              # student.onnx (fp32, ~0.4 MB) + parity/latency check
-Then copy `student.onnx` to `public/models/` and redeploy. Synthetic data is only for pipeline development and
-pretraining — report real-recording results separately.
+## Stack
+IWSDK / WebXR, Three.js, Vite. ML in `ml/` (PyTorch, scikit-learn, XGBoost); Colab notebook `rehablens_colab.ipynb`.
 
 ## Deploy
-Push to GitHub, enable Pages -> Source: GitHub Actions (workflow included). Submission needs the live URL.
-
-## Full ML stack (ml/train.py, Colab notebook `rehablens_colab.ipynb`)
-Baseline ladder (mean/Ridge/XGBoost/BiGRU) -> Mamba teacher -> masked-joint + contrastive SSL -> cVAE augmentation -> domain-adversarial (real data) -> one-class VAE -> conformal intervals -> Integrated Gradients + deletion test -> few-shot personalization -> distilled int8 ONNX student.
-`cd ml && pip install -r requirements.txt && python train.py all --preset quick --ckpt ckpt`. Copy `student.int8.onnx` + `calibration.json` to `public/models/`.
-All numbers are on synthetic data unless you add real recordings (`?mode=record`).
+GitHub Pages via `.github/workflows/pages.yml` (Settings -> Pages -> Source: GitHub Actions).
