@@ -3,10 +3,15 @@
 **Hands-only hand rehab for Meta Quest, in the browser (WebXR).** No controllers, no install.
 Built for the Meta VR Start Developer Competition 2026 (Productivity).
 
-**Live demo:** https://raus1377.github.io/rehablens/  (on a Quest: open in the Quest Browser and tap Enter VR; on desktop it plays a simulated-hand demo)
+**Live demo:** https://raus1377.github.io/rehablens/  
+- **On a Meta Quest (Quest Browser):** tap Enter VR. This is the real app, driven by your tracked hands.
+- **On a laptop/desktop (no headset):** the page plays a self-running **simulated-hand demo** of the same app, labelled "DESKTOP DEMO - simulated hand". Real hand tracking needs a Quest (or the Immersive Web Emulator).
 
 ## What it does
 Pinch and hold to start. A ghost hand demonstrates each exercise (fist open/close, finger tapping, wrist rotation); you copy it for 12 s while RehabLens scores your form live from the 25 tracked joints per hand (range of motion, 4-12 Hz tremor, rhythm), counts reps, names the finger that under-moves, and shows a 90% confidence interval (about +/-13 points). A summary screen follows.
+
+## Session history
+After each real session the summary shows your last overall score and the change (stored locally in the browser).
 
 ## Honest status
 - Scoring models were trained and evaluated on **synthetic** kinematic data (subject-wise CV). Not clinically validated.

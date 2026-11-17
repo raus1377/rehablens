@@ -183,7 +183,20 @@ export class CoachSystem extends createSystem({}) {
             rom: avg(this.stat.rom), tremor: avg(this.stat.tremor), cv: avg(this.stat.cv),
         });
         this.step++;
-        if (this.step >= ORDER.length) { this.state = S.SUMMARY; this.ghost.visible = false; this.hold = 0; } else this.beginDemo();
+        if (this.step >= ORDER.length) { this.state = S.SUMMARY; this.ghost.visible = false; this.hold = 0; this.saveHistory(); } else this.beginDemo();
+    }
+    /** Keep a small per-browser session history (real sessions only, not the looping desktop demo). */
+    saveHistory() {
+        this.prevOverall = null; this.sessionCount = 0;
+        try {
+            const key = 'rehablens.history';
+            const h = JSON.parse(localStorage.getItem(key) || '[]');
+            const real = this.results.filter((r) => r.score != null);
+            const overall = real.length ? Math.round(real.reduce((a, r) => a + r.score, 0) / real.length) : null;
+            if (h.length) this.prevOverall = h[h.length - 1].overall;
+            if (overall != null && !(this.simOn && !this.world.session)) { h.push({ t: Date.now(), overall }); localStorage.setItem(key, JSON.stringify(h.slice(-30))); }
+            this.sessionCount = h.length;
+        } catch (e) { /* storage unavailable: skip history */ }
     }
 
     /** Run scoring on the current window. */
@@ -393,7 +406,13 @@ export class CoachSystem extends createSystem({}) {
                 y += 85;
             }
             c.font = '700 40px sans-serif'; c.fillStyle = '#7dd3fc';
-            c.fillText(`Overall ${Math.round(n ? tot / n : 0)} / 100` + (this.simOn && !this.world.session ? '  ·  demo restarts soon' : '  ·  pinch and hold to go again'), 40, 475);
+            const ov = Math.round(n ? tot / n : 0);
+            c.fillText(`Overall ${ov} / 100` + (this.simOn && !this.world.session ? '  ·  demo restarts soon' : '  ·  pinch and hold to go again'), 40, 465);
+            if (this.prevOverall != null && !(this.simOn && !this.world.session)) {
+                const d = ov - this.prevOverall;
+                c.font = '26px sans-serif'; c.fillStyle = '#94a3b8';
+                c.fillText(`Last session ${this.prevOverall}  ·  ${d >= 0 ? '+' : ''}${d} today  ·  session ${this.sessionCount}`, 40, 500);
+            }
         }
         this.tex.needsUpdate = true;
     }
