@@ -6,7 +6,7 @@
  * computed from the hand-joint signal. Fingertip markers show which finger is lagging.
  */
 import { createSystem, CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SphereGeometry } from '@iwsdk/core';
-import { GhostHand } from './ghost.js';
+import { computeJoints, GhostHand } from './ghost.js';
 import { calibratedScore, ClassicScorer, metrics, normalise, OnnxScorer, preprocess, signalFor } from './scoring.js';
 
 const NAMES = ['Fist open / close', 'Finger tapping', 'Wrist rotation'];
@@ -68,6 +68,15 @@ export class CoachSystem extends createSystem({}) {
         panel.position.set(0.1, 1.5, -0.85);
         this.world.createTransformEntity(panel);
         this.ghost = new GhostHand(this.world);
+        // Desktop demo: with no WebXR headset available, a simulated hand drives the coach so the link still shows the full experience.
+        this.userHand = new GhostHand(this.world, { pos: [0.55, 1.2, -0.75], color: 0x16a34a, line: 0x15803d, fk: { weak: 3, weakScale: 0.3, tremor: 0, t: 0 } });
+        const q = new URLSearchParams(location.search).get('demo');
+        this.simOn = q === '1';
+        this.simIdle = 0;
+        if (q !== '0' && q !== '1') {
+            if (navigator.xr && navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-vr').then((ok) => { this.simOn = !ok; }, () => { this.simOn = true; });
+            else this.simOn = true;
+        }
         const sg = new SphereGeometry(0.011, 12, 10);
         this.tipMats = TIPS.map(() => new MeshBasicMaterial({ color: 0x38bdf8 }));
         this.tipMeshes = this.tipMats.map((m) => {
@@ -122,6 +131,15 @@ export class CoachSystem extends createSystem({}) {
         this.side = this.tracked.right || !this.tracked.left ? 'right' : 'left';
     }
 
+    /** Desktop demo: synthetic user hand (stiff ring finger on the fist exercise, mild tremor on wrist rotation). */
+    simHands(time) {
+        this.tracked.left = false;
+        this.tracked.right = true;
+        this.side = 'right';
+        const ex = ORDER[Math.min(this.step, ORDER.length - 1)];
+        computeJoints(ex, time * 2 * Math.PI * 0.8 - 0.3, this.pos.right, { weak: ex === 0 ? 3 : -1, weakScale: 0.3, tremor: ex === 2 ? 0.05 : 0, t: time });
+    }
+
     pinching() {
         for (const side of ['right', 'left']) {
             if (!this.tracked[side]) continue;
@@ -134,6 +152,7 @@ export class CoachSystem extends createSystem({}) {
     start() {
         this.step = 0;
         this.results = [];
+        this.simIdle = 0;
         this.beginDemo();
     }
     beginDemo() {
@@ -206,22 +225,26 @@ export class CoachSystem extends createSystem({}) {
 
     update(delta, time) {
         const inXR = !!this.world.session;
-        if (this.welcome) this.welcome.visible = !inXR;
-        if (!inXR) {
+        const sim = !inXR && this.simOn;
+        if (this.welcome) this.welcome.visible = !inXR && !sim;
+        if (!inXR && !sim) {
             this.ghost.visible = false;
+            this.userHand.visible = false;
             for (const m of this.tipMeshes) m.visible = false;
             this.setText('Enter VR to begin', '');
             return;
         }
         this.clock = time;
-        this.readHands();
+        if (sim) this.simHands(time);
+        else this.readHands();
         const tracked = this.tracked[this.side];
-        const pinch = this.pinching();
+        const pinch = sim ? this.simIdle > (this.state === S.IDLE ? 1.5 : 8) : this.pinching();
+        if (sim && (this.state === S.IDLE || this.state === S.SUMMARY)) this.simIdle += delta;
 
         // user's fingertip markers (colour = how well each finger moves)
         for (let i = 0; i < 5; i++) {
             const m = this.tipMeshes[i];
-            m.visible = tracked && this.state === S.PRACTICE;
+            m.visible = !sim && tracked && this.state === S.PRACTICE;
             if (!m.visible) continue;
             const p = this.pos[this.side], j = TIPS[i];
             m.position.set(p[3 * j], p[3 * j + 1], p[3 * j + 2]);
@@ -229,6 +252,10 @@ export class CoachSystem extends createSystem({}) {
             this.tipMats[i].color.setHex(ORDER[this.step] !== 0 ? 0x38bdf8 : r > 0.7 ? 0x4ade80 : r > 0.5 ? 0xfbbf24 : 0xf87171);
         }
 
+        if (sim) {
+            this.userHand.visible = this.state === S.PRACTICE;
+            if (this.state === S.PRACTICE) { this.userHand.opts.t = time; this.userHand.opts.tremor = ORDER[this.step] === 2 ? 0.05 : 0; this.userHand.opts.weak = ORDER[this.step] === 0 ? 3 : -1; this.userHand.update(ORDER[this.step], this.clock * 2 * Math.PI * 0.8 - 0.3); }
+        }
         switch (this.state) {
             case S.IDLE:
             case S.SUMMARY: {
@@ -306,7 +333,7 @@ export class CoachSystem extends createSystem({}) {
     draw(tracked = true, forceA, forceB) {
         const ex = ORDER[Math.min(this.step, ORDER.length - 1)];
         const sc = this.cur.score == null ? -1 : Math.round(this.cur.score);
-        const key = [this.state, this.step, Math.ceil(this.timer), sc, this.cur.reps, this.cur.cue, this.modelState, tracked, forceA, this.results.length, Math.round(this.hold * 5)].join('|');
+        const key = [this.state, this.step, Math.ceil(this.timer), sc, this.cur.reps, this.cur.cue, this.modelState, tracked, forceA, this.results.length, Math.round(this.hold * 5), this.simOn].join('|');
         if (key === this.last) return;
         this.last = key;
         const c = this.ctx;
@@ -316,15 +343,15 @@ export class CoachSystem extends createSystem({}) {
         c.fillStyle = '#7dd3fc'; c.font = '600 30px sans-serif';
         c.fillText('HAND REHAB COACH', 40, 62);
         c.textAlign = 'right'; c.fillStyle = this.modelState === 'ai' ? '#4ade80' : '#fbbf24'; c.font = '26px sans-serif';
-        c.fillText(this.modelState === 'ai' ? 'AI model active' : this.modelState === 'loading' ? 'loading model...' : 'signal analysis mode', 984, 62);
+        c.fillText(this.simOn && !this.world.session ? 'DESKTOP DEMO - simulated hand' : this.modelState === 'ai' ? 'AI model active' : this.modelState === 'loading' ? 'loading model...' : 'signal analysis mode', 984, 62);
         c.textAlign = 'left';
         c.fillStyle = '#fff';
         if (forceA) {
             c.font = '700 56px sans-serif'; c.fillText(forceA, 40, 230);
         } else if (this.state === S.IDLE) {
-            c.font = '700 64px sans-serif'; c.fillText(tracked ? 'Pinch and hold to start' : 'Show your hands', 40, 220);
+            c.font = '700 64px sans-serif'; c.fillText(this.simOn && !this.world.session ? 'Desktop demo' : tracked ? 'Pinch and hold to start' : 'Show your hands', 40, 220);
             c.font = '32px sans-serif'; c.fillStyle = '#cbd5e1';
-            c.fillText('3 short exercises, scored live by AI. No controllers.', 40, 290);
+            c.fillText(this.simOn && !this.world.session ? 'Best on Meta Quest with hand tracking. Starting demo...' : '3 short exercises, scored live by AI. No controllers.', 40, 290);
             this.bar(c, this.hold / HOLD_S, 360);
         } else if (this.state === S.DEMO) {
             c.font = `600 34px sans-serif`; c.fillStyle = '#94a3b8'; c.fillText(`Exercise ${this.step + 1} of 3`, 40, 130);
